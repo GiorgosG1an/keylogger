@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.Base64;
 
@@ -15,45 +16,46 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class EncryptedLogger {
-    private static final String SECRET = "myStrongPassphrase123";
-    private static final String SALT = "staticSalt12345678";
+    private final SecretKeySpec key;
     private static final File LOG_FILE = new File("logs/keystrokes.enc");
 
-    private final SecretKeySpec key;
-    private final IvParameterSpec iv;
-
-    public EncryptedLogger() throws Exception {
-        this.key = deriveKey(SECRET, SALT);
-        this.iv = generateIV();
+    public EncryptedLogger(char[] password) throws Exception {
+        // Derive key using PBKDF2 with a static (for now) salt
+        byte[] salt = "educationalSalt!".getBytes(); // still static — we'll improve next
+        this.key = deriveKey(password, salt);
     }
 
-    private SecretKeySpec deriveKey(String password, String salt) throws Exception {
+    private SecretKeySpec deriveKey(char[] password, byte[] salt) throws Exception {
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
 
-        KeySpec spec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), 65536, 128);
+        KeySpec spec = new PBEKeySpec(password, salt, 65536, 128); // 128 bit AES
 
         SecretKey tmp = factory.generateSecret(spec);
-
         return new SecretKeySpec(tmp.getEncoded(), "AES");
-
     }
 
-    private IvParameterSpec generateIV() {
-        byte[] ivBytes = "1234567890abcdef".getBytes();
-
-        return new IvParameterSpec(ivBytes);
+    private IvParameterSpec generateRandomIV() {
+        byte[] iv = new byte[16];
+        new SecureRandom().nextBytes(iv);
+        return new IvParameterSpec(iv);
     }
 
-    public void encryptAndWrite(String text) throws Exception {
+    public void encryptAndWrite(String plaintext) throws Exception {
+        IvParameterSpec iv = generateRandomIV();
+
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key, iv);
 
-        byte[] encrypted = cipher.doFinal(text.getBytes(StandardCharsets.UTF_8));
-        String base64 = Base64.getEncoder().encodeToString(encrypted);
+        byte[] encrypted = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
+
+        String encodedIV = Base64.getEncoder().encodeToString(iv.getIV());
+        String encodedCipher = Base64.getEncoder().encodeToString(encrypted);
+
+        String outputLine = encodedIV + "::" + encodedCipher;
 
         LOG_FILE.getParentFile().mkdirs();
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(LOG_FILE, true))) {
-            writer.write(base64);
+            writer.write(outputLine);
             writer.newLine();
         }
     }
