@@ -1,6 +1,5 @@
 package com.github.giorgosg1an;
 
-import java.awt.KeyboardFocusManager;
 
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
