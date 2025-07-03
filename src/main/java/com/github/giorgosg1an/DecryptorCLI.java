@@ -33,6 +33,14 @@ public class DecryptorCLI {
 
     public void decryptAllLine(String password) {
         try {
+            String saltLine = reader.readLine();
+            if (saltLine == null || !saltLine.startsWith("SALT::")) {
+                throw new IllegalStateException("Missing or Malformed salt line");
+            }
+
+            byte[] salt = Base64.getDecoder().decode(saltLine.split("::")[1]);
+            SecretKeySpec key = deriveKey(password.toCharArray(), salt);
+
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split("::");
@@ -44,7 +52,6 @@ public class DecryptorCLI {
                 byte[] ivBytes = Base64.getDecoder().decode(parts[0]);
                 byte[] cipherBytes = Base64.getDecoder().decode(parts[1]);
 
-                SecretKeySpec key = deriveKey(password.toCharArray());
                 IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
 
                 Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -63,8 +70,7 @@ public class DecryptorCLI {
         }
     }
 
-    private SecretKeySpec deriveKey(char[] password) throws Exception {
-        byte[] salt = "educationalSalt!".getBytes();
+    private SecretKeySpec deriveKey(char[] password, byte[] salt) throws Exception {
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
         PBEKeySpec spec = new PBEKeySpec(password, salt, 65536, 128);
         SecretKey tmp = factory.generateSecret(spec);
